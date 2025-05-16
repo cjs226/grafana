@@ -350,6 +350,8 @@ func (s *service) start(ctx context.Context) error {
 		}
 		// we are running with KubernetesAggregator FT set to true but with enterprise unlinked, handle this gracefully
 		if aggregatorServer != nil {
+			s.authorizer.Register(schema.GroupVersion{Group: "apiregistration.k8s.io", Version: "v1"}, aggregatorrunner.GetAuthorizer())
+
 			if !isDataplaneAggregatorEnabled {
 				runningServer, err = s.aggregatorRunner.Run(ctx, transport, s.stoppedCh)
 				if err != nil {

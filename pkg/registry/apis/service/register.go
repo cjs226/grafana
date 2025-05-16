@@ -1,6 +1,9 @@
 package service
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/prometheus/client_golang/prometheus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -10,6 +13,7 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/kube-openapi/pkg/common"
 
+	"github.com/grafana/grafana/pkg/apimachinery/identity"
 	service "github.com/grafana/grafana/pkg/apis/service/v0alpha1"
 	grafanaregistry "github.com/grafana/grafana/pkg/apiserver/registry/generic"
 	"github.com/grafana/grafana/pkg/services/apiserver/builder"
@@ -36,7 +40,21 @@ func RegisterAPIService(features featuremgmt.FeatureToggles, apiregistration bui
 }
 
 func (b *ServiceAPIBuilder) GetAuthorizer() authorizer.Authorizer {
-	return nil // default authorizer is fine
+	return authorizer.AuthorizerFunc(func(ctx context.Context, a authorizer.Attributes) (authorizer.Decision, string, error) {
+		fmt.Println("Potato", a.GetResource(), a.GetVerb())
+		_, err := identity.GetRequester(ctx)
+		if err != nil {
+			return authorizer.DecisionDeny, "", err
+		}
+
+		if a.GetResource() == "externalnames" {
+			if a.GetVerb() == "get" || a.GetVerb() == "list" {
+				return authorizer.DecisionAllow, "", nil
+			}
+		}
+
+		return authorizer.DecisionDeny, "", nil
+	})
 }
 
 func (b *ServiceAPIBuilder) GetGroupVersion() schema.GroupVersion {
